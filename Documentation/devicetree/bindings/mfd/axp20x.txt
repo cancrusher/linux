@@ -43,6 +43,13 @@ Optional properties for DCDC regulators:
 			  probably makes sense for HiFi audio related
 			  applications that aren't battery constrained.
 
+- x-powers,multi-phase: A list of other DCDC regulators to use together as
+			a multi-phase regulator. The list should be comprised
+			of numbers indicating the index of the regulator,
+			where 0 denotes DCDC1 or DCDCA. This should not
+			include the master regulator whose node this property
+			is defined in. Not all regulators can be paired. See
+			the PMIC's datasheet for more information.
 
 AXP202/AXP209 regulators, type, and corresponding input supply names:
 
