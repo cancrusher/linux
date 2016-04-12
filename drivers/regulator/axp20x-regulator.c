@@ -36,6 +36,8 @@
 
 #define AXP20X_FREQ_DCDC_MASK		0x0f
 
+#define AXP22X_MISC_N_VBUSEN_FUNC	BIT(4)
+
 #define AXP_DESC_IO(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
 		    _vmask, _ereg, _emask, _enable_val, _disable_val)		\
 	[_family##_##_id] = {							\
@@ -226,6 +228,18 @@ static const struct regulator_desc axp22x_regulators[] = {
 	AXP_DESC_FIXED(AXP22X, RTC_LDO, "rtc_ldo", "ips", 3000),
 };
 
+static const struct regulator_desc axp22x_drivebus_regulator = {
+	.name		= "drivebus",
+	.supply_name	= "ips",
+	.of_match	= of_match_ptr("drivebus"),
+	.regulators_node = of_match_ptr("regulators"),
+	.type		= REGULATOR_VOLTAGE,
+	.owner		= THIS_MODULE,
+	.enable_reg	= AXP20X_VBUS_IPSOUT_MGMT,
+	.enable_mask	= BIT(2),
+	.ops		= &axp20x_ops_sw,
+};
+
 static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 {
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
@@ -351,6 +365,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	u32 workmode;
 	const char *axp22x_dc1_name = axp22x_regulators[AXP22X_DCDC1].name;
 	const char *axp22x_dc5_name = axp22x_regulators[AXP22X_DCDC5].name;
+	bool drivebus = false;
 
 	switch (axp20x->variant) {
 	case AXP202_ID:
@@ -362,6 +377,8 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	case AXP223_ID:
 		regulators = axp22x_regulators;
 		nregulators = AXP22X_REG_ID_MAX;
+		drivebus = of_property_read_bool(pdev->dev.of_node,
+						 "x-powers,drivebus");
 		/*
 		 * On cold boot ldo_io# sel is 0x1f which is out of spec,
 		 * fix this up here to avoid _regulator_get_voltage returning
@@ -454,6 +471,19 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 				of_property_read_string(rdev->dev.of_node,
 							"regulator-name",
 							&axp22x_dc5_name);
+		}
+	}
+
+	if (drivebus) {
+		/* Change N_VBUSEN sense pin to DRIVEBUS output pin */
+		regmap_update_bits(axp20x->regmap, AXP20X_OVER_TMP,
+				   AXP22X_MISC_N_VBUSEN_FUNC, 0);
+		rdev = devm_regulator_register(&pdev->dev,
+					       &axp22x_drivebus_regulator,
+					       &config);
+		if (IS_ERR(rdev)) {
+			dev_err(&pdev->dev, "Failed to register drivebus\n");
+			return PTR_ERR(rdev);
 		}
 	}
 
