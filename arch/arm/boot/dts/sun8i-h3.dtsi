@@ -726,6 +726,9 @@
 			reset-names = "ahb";
 			clocks = <&bus_gates 17>, <&ephy>;
 			clock-names = "ahb", "tx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 
 		r_twi: i2c@01f02400 {
 			compatible = "allwinner,sun6i-a31-i2c";
